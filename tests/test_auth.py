@@ -20,7 +20,9 @@ def test_chat_rejects_wrong_key(client):
 
 def test_chat_rejects_key_when_server_key_unset(monkeypatch, settings_env):
     monkeypatch.delenv("APP_API_KEY")
-    from app.config import get_settings
+    from app.config import Settings, get_settings
+
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
 
     get_settings.cache_clear()
     from fastapi.testclient import TestClient

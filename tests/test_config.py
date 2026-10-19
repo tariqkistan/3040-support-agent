@@ -23,7 +23,7 @@ def test_trailing_slash_stripped():
 
 
 def test_missing_for_api_lists_empty_fields():
-    s = Settings()
+    s = Settings(_env_file=None)
     assert set(s.missing_for_api()) == {
         "azure_ai_project_endpoint",
         "azure_search_endpoint",
