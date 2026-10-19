@@ -1,0 +1,20 @@
+# Source document may be confidential/copyrighted — never commit it
+data/docs/*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local env and eval output
+.env
+evals/results.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

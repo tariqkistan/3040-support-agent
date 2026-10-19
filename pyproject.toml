@@ -1,0 +1,15 @@
+[project]
+name = "3040-support-agent"
+version = "0.1.0"
+description = "Technical support agent on Microsoft Foundry, grounded in a technical PDF"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
