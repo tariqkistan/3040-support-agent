@@ -84,7 +84,9 @@ async def health(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
     response_model=ChatResponse,
     dependencies=[Depends(verify_api_key)],
 )
+@limiter.limit(lambda: f"{get_settings().rate_limit_per_minute}/minute")
 async def chat(
+    request: Request,
     body: ChatRequest,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ChatResponse:

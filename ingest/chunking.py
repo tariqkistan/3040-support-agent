@@ -67,9 +67,17 @@ def _line_text(line: dict) -> str:
     return "".join(span["text"] for span in line["spans"]).strip()
 
 
+def _looks_like_heading_text(text: str) -> bool:
+    """Headings are letter-dominant — this filters out phone numbers, part
+    numbers, and other big/bold numeric noise."""
+    letters = sum(c.isalpha() for c in text)
+    digits = sum(c.isdigit() for c in text)
+    return letters >= 3 and letters >= digits
+
+
 def _is_heading(line: dict, median_size: float) -> bool:
     text = _line_text(line)
-    if not text or len(text) > 120:
+    if not text or len(text) > 120 or not _looks_like_heading_text(text):
         return False
     sizes = [s["size"] for s in line["spans"]]
     bold = any(s["flags"] & BOLD_FLAG for s in line["spans"])

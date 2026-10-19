@@ -14,12 +14,13 @@ import sys
 import time
 from pathlib import Path
 
-from azure.ai.projects import AIProjectClient
 from azure.core.credentials import TokenCredential
 from azure.identity import DefaultAzureCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
+    AzureOpenAIVectorizer,
+    AzureOpenAIVectorizerParameters,
     HnswAlgorithmConfiguration,
     SearchableField,
     SearchField,
@@ -67,7 +68,23 @@ def build_index(settings) -> SearchIndex:
     vector_search = VectorSearch(
         algorithms=[HnswAlgorithmConfiguration(name="hnsw")],
         profiles=[
-            VectorSearchProfile(name="hnsw-profile", algorithm_configuration_name="hnsw")
+            VectorSearchProfile(
+                name="hnsw-profile",
+                algorithm_configuration_name="hnsw",
+                vectorizer_name="aoai-vectorizer",
+            )
+        ],
+        vectorizers=[
+            # Lets the Foundry agent vectorize queries at search time using the
+            # account's managed identity — no keys.
+            AzureOpenAIVectorizer(
+                vectorizer_name="aoai-vectorizer",
+                parameters=AzureOpenAIVectorizerParameters(
+                    resource_url=settings.azure_openai_endpoint,
+                    deployment_name=settings.embedding_model_deployment,
+                    model_name=settings.embedding_model_deployment,
+                ),
+            )
         ],
     )
     semantic = SemanticSearch(
@@ -112,17 +129,43 @@ def delete_existing_chunks(settings, credential: TokenCredential, source_file: s
 
 
 def embed_chunks(chunks: list[Chunk], settings, credential: TokenCredential) -> list[list[float]]:
-    """Vectorize chunk content with the project's embedding deployment."""
-    project = AIProjectClient(endpoint=settings.azure_ai_project_endpoint, credential=credential)
+    """Vectorize chunk content with the account's embedding deployment."""
+    from azure.identity import get_bearer_token_provider
+    from openai import AzureOpenAI
+
+    token_provider = get_bearer_token_provider(
+        credential, "https://cognitiveservices.azure.com/.default"
+    )
+    client = AzureOpenAI(
+        azure_endpoint=settings.azure_openai_endpoint,
+        azure_ad_token_provider=token_provider,
+        api_version="2024-10-21",
+    )
     vectors: list[list[float]] = []
-    with project.get_openai_client() as openai_client:
+    with client as openai_client:
         for i in range(0, len(chunks), EMBED_BATCH):
             batch = [c.content for c in chunks[i : i + EMBED_BATCH]]
-            resp = openai_client.embeddings.create(
-                model=settings.embedding_model_deployment, input=batch
-            )
+            resp = _embed_with_retry(openai_client, settings, batch)
             vectors.extend(item.embedding for item in resp.data)
     return vectors
+
+
+def _embed_with_retry(openai_client, settings, batch, attempts: int = 6):
+    """Retry on 429s: small deployments hit the tier's TPM cap quickly."""
+    from openai import RateLimitError
+
+    for attempt in range(attempts):
+        try:
+            return openai_client.embeddings.create(
+                model=settings.embedding_model_deployment, input=batch
+            )
+        except RateLimitError:
+            if attempt == attempts - 1:
+                raise
+            wait = 65
+            print(f"  rate limited, retrying in {wait}s (batch retry {attempt + 1})")
+            time.sleep(wait)
+    raise RuntimeError("unreachable")
 
 
 def upload_chunks(chunks, vectors, settings, credential) -> int:
@@ -155,7 +198,7 @@ def main() -> int:
     settings = get_settings()
     missing = [
         k
-        for k in ("azure_ai_project_endpoint", "azure_search_endpoint")
+        for k in ("azure_openai_endpoint", "azure_search_endpoint")
         if not getattr(settings, k)
     ]
     if missing:

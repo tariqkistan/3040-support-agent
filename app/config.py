@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     azure_search_endpoint: str = ""
     azure_search_index: str = "support-docs"
     azure_search_connection_name: str = ""
+    # 'vector_semantic_hybrid' needs a Search tier with semantic ranker (Basic+);
+    # free tier uses 'vector_simple_hybrid'.
+    search_query_type: str = "vector_simple_hybrid"
 
     # This API's own key (not an Azure credential)
     app_api_key: str = ""
@@ -35,7 +38,9 @@ class Settings(BaseSettings):
     max_message_length: int = Field(default=4000, gt=0)
     rate_limit_per_minute: int = Field(default=30, gt=0)
 
-    # Embeddings (used by ingest to vectorize chunks)
+    # Embeddings (used by ingest to vectorize chunks). Custom deployments live on
+    # the account's Azure OpenAI endpoint, not the project's /openai/v1 route.
+    azure_openai_endpoint: str = ""
     embedding_model_deployment: str = "text-embedding-3-large"
     embedding_dimensions: int = Field(default=3072, gt=0)
 
