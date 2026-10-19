@@ -1,0 +1,30 @@
+{"question": "What is the work area of the PLT-3040?", "reference_answer": "300 x 400 mm", "expected_pages": [6], "category": "direct"}
+{"question": "How powerful is the laser tube in the PLT-3040?", "reference_answer": "50 Watts", "expected_pages": [6], "category": "direct"}
+{"question": "What type of laser do these machines use?", "reference_answer": "A sealed CO2 glass laser tube", "expected_pages": [6, 8], "category": "direct"}
+{"question": "How do you connect the machine to a PC?", "reference_answer": "Via the supplied USB 2 cable to a USB port on the PC", "expected_pages": [6, 9], "category": "direct"}
+{"question": "What is the maximum engraving speed of the PLT-3040?", "reference_answer": "0-400 mm/s", "expected_pages": [6], "category": "direct"}
+{"question": "How much does the PLT-3040 weigh?", "reference_answer": "65 kg net weight", "expected_pages": [6], "category": "direct"}
+{"question": "What is the national support number and support email?", "reference_answer": "087 135 3949 and techsupport@perfectlaser.co.za", "expected_pages": [2], "category": "direct"}
+{"question": "What does the emergency stop button do and how do you release it?", "reference_answer": "It cuts all power to the machine; push to activate and turn clockwise to release", "expected_pages": [9], "category": "direct"}
+{"question": "At what water temperature must you not fire the laser tube?", "reference_answer": "Do not fire the laser if the water temperature exceeds 30 degrees Celsius", "expected_pages": [9], "category": "direct"}
+{"question": "Which software is required to operate the machine?", "reference_answer": "CorelDraw (CorelLASER plugin is supplied; CorelDraw is not included)", "expected_pages": [6], "category": "direct"}
+{"question": "Is a rotary attachment included with the PLT-6040?", "reference_answer": "Yes, the rotary is included on the PLT-6040 (optional on the PLT-3040)", "expected_pages": [8, 6], "category": "direct"}
+{"question": "What cleaning solvent should be used on the focal lens?", "reference_answer": "Denatured alcohol only, applied with a lens tissue or cotton swab", "expected_pages": [30], "category": "direct"}
+{"question": "What voltage is the red dot pointer?", "reference_answer": "5 volt DC", "expected_pages": [42], "category": "direct"}
+{"question": "What materials can the PLT-3040 cut?", "reference_answer": "MDF, Acrylic, Plastic, Plexiglas, Rubber and similar materials", "expected_pages": [5], "category": "direct"}
+{"question": "Which water chiller is recommended for tubes above 80 Watts?", "reference_answer": "A CW5200 water chiller is required/preferred for tubes exceeding 80W", "expected_pages": [8], "category": "direct"}
+{"question": "What is the work area of the PLT-6040?", "reference_answer": "600 (X) x 400 (Y) mm", "expected_pages": [8], "category": "table"}
+{"question": "What is the total power consumption of the PLT-6040?", "reference_answer": "Under 1000 Watts", "expected_pages": [8], "category": "table"}
+{"question": "How much Z-axis travel does the PLT-6040 have?", "reference_answer": "150 mm, electric motor driven", "expected_pages": [8], "category": "table"}
+{"question": "What is the maximum cutting thickness of the PLT-6040?", "reference_answer": "0-10 mm, material dependent", "expected_pages": [8], "category": "table"}
+{"question": "What are the physical dimensions of the PLT-3040 machine?", "reference_answer": "910 x 760 x 600 mm", "expected_pages": [6], "category": "table"}
+{"question": "How do I connect the air assist pump to the machine?", "reference_answer": "Screw the brass nozzle onto the front of the pump, push the nozzle into the black tube at the back of the machine marked Air Inlet (heating the tube may help), and plug the pump into the AC strip socket on the back", "expected_pages": [11, 33, 34], "category": "procedural"}
+{"question": "How do I install the rotary attachment?", "reference_answer": "Switch off the laser, place the rotary at the centre of the bed, open the right-hand cover, unplug the Y-Axis plug on the controller board and plug in the rotary cable (or use the rotary port/switch if fitted)", "expected_pages": [26], "category": "procedural"}
+{"question": "How do I clean the focal lens and which way does it go back in?", "reference_answer": "Remove the air hose, unscrew the nozzle assembly, remove the lens from the ringnut, clean with denatured alcohol and a lens tissue using a swirling motion, and refit it convex side up (flat/concave side down)", "expected_pages": [29, 30], "category": "procedural"}
+{"question": "My machine power button is on but the machine is dead — what should I check?", "reference_answer": "Ensure the Emergency Switch is released, check the fuse in the sliding drawer of the AC socket, try another power cable and another AC socket", "expected_pages": [43], "category": "procedural"}
+{"question": "The machine works but the laser does not fire — what are the likely causes?", "reference_answer": "The laser PSU won't fire without water flow: check water is flowing freely at the reservoir return pipe and pipes aren't pinched; also check the Laser Power Switch, the Test button on the PSU, the water flow sensor, and the Laser PSU/tube", "expected_pages": [43], "category": "procedural"}
+{"question": "What is the price of the iPhone 17?", "reference_answer": "Not in the document — agent must decline", "expected_pages": [], "category": "out_of_scope"}
+{"question": "What warranty does a Samsung TV come with?", "reference_answer": "Not in the document — agent must decline", "expected_pages": [], "category": "out_of_scope"}
+{"question": "How do I fix a paper jam in an HP OfficeJet printer?", "reference_answer": "Not in the document — agent must decline", "expected_pages": [], "category": "out_of_scope"}
+{"question": "What is the weather forecast for Cape Town this weekend?", "reference_answer": "Not in the document — agent must decline", "expected_pages": [], "category": "out_of_scope"}
+{"question": "Can I get a refund on my machine if I change my mind?", "reference_answer": "Not in the document — agent must decline", "expected_pages": [], "category": "out_of_scope"}

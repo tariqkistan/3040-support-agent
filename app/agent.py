@@ -69,6 +69,7 @@ def _get_or_create_agent(project: AIProjectClient, settings: Settings):
                                 query_type=AzureAISearchQueryType(
                                     settings.search_query_type
                                 ),
+                                top_k=10,
                             )
                         ]
                     )
@@ -122,7 +123,25 @@ def _run_turn_sync(session_id: str, message: str, settings: Settings) -> tuple[s
                     "agent_reference": {"name": agent.name, "type": "agent_reference"}
                 },
             )
-    return parse_sources(response.output_text or "")
+    return parse_sources(_final_message_text(response))
+
+
+def _final_message_text(response) -> str:
+    """Extract the last assistant message from a Responses result.
+
+    output_text concatenates ALL text output — including commentary like
+    'I'll search the docs now' — so we take the final assistant message.
+    """
+    texts = []
+    for item in getattr(response, "output", []) or []:
+        if getattr(item, "type", None) == "message" and getattr(item, "role", None) == "assistant":
+            for part in getattr(item, "content", []) or []:
+                text = getattr(part, "text", None)
+                if text:
+                    texts.append(text)
+    if texts:
+        return texts[-1]
+    return getattr(response, "output_text", "") or ""
 
 
 async def run_agent_turn(

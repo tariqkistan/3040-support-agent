@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     embedding_model_deployment: str = "text-embedding-3-large"
     embedding_dimensions: int = Field(default=3072, gt=0)
 
+    # LLM judge for evals — must be a non-reasoning chat model (azure-ai-evaluation
+    # uses chat completions with max_tokens, which reasoning models reject).
+    eval_model_deployment: str = "gpt-4.1-mini"
+
     # Optional: only needed when the source PDF is scanned
     document_intelligence_endpoint: str = ""
 

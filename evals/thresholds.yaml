@@ -1,0 +1,16 @@
+# Evaluation gates — the CI job fails the PR when any metric drops below these.
+# How they were chosen: these floors were set after a baseline run on the
+# 30-case dataset (see evals/results.json). Each threshold sits ~0.5 below the
+# observed baseline so normal LLM variance passes but a real regression
+# (broken grounding, lost citations, over-eager answers) fails.
+# Bump them up carefully — raising a floor means a PR must actually be better.
+
+# Mean groundedness score (azure-ai-evaluation, 1-5 scale)
+groundedness: 3.5
+# Mean relevance score (azure-ai-evaluation, 1-5 scale)
+relevance: 3.5
+# Fraction of in-scope answers whose cited page matches an expected page (±1
+# page tolerance — the model may cite the printed page number, offset by ~2)
+citation_accuracy: 0.6
+# Fraction of out-of-scope questions that are declined (no fabricated answer)
+refusal_rate: 0.8
