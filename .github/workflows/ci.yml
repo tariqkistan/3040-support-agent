@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC token for azure/login (no stored secrets)
+  contents: read
+
+jobs:
+  test:
+    name: Lint + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+
+  evals:
+    name: Evaluation gate (live Azure)
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      AZURE_AI_PROJECT_ENDPOINT: ${{ vars.AZURE_AI_PROJECT_ENDPOINT }}
+      AGENT_MODEL_DEPLOYMENT: ${{ vars.AGENT_MODEL_DEPLOYMENT }}
+      AZURE_SEARCH_ENDPOINT: ${{ vars.AZURE_SEARCH_ENDPOINT }}
+      AZURE_SEARCH_INDEX: ${{ vars.AZURE_SEARCH_INDEX }}
+      AZURE_SEARCH_CONNECTION_NAME: ${{ vars.AZURE_SEARCH_CONNECTION_NAME }}
+      SEARCH_QUERY_TYPE: ${{ vars.SEARCH_QUERY_TYPE }}
+      AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+      EMBEDDING_MODEL_DEPLOYMENT: ${{ vars.EMBEDDING_MODEL_DEPLOYMENT }}
+      EMBEDDING_DIMENSIONS: ${{ vars.EMBEDDING_DIMENSIONS }}
+      EVAL_MODEL_DEPLOYMENT: ${{ vars.EVAL_MODEL_DEPLOYMENT }}
+      APP_API_KEY: ${{ secrets.APP_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      # Federated identity (OIDC) — no Azure secrets stored in the repo.
+      # Setup is documented in README.md (one-time app registration).
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # The source PDF is never committed (copyright). It lives in a private
+      # blob container and is fetched with the OIDC identity's RBAC role
+      # (Storage Blob Data Reader on the container).
+      - name: Fetch source PDF from blob storage
+        run: |
+          mkdir -p data/docs
+          az storage blob download \
+            --account-name "${{ vars.PDF_STORAGE_ACCOUNT }}" \
+            --container-name "${{ vars.PDF_STORAGE_CONTAINER }}" \
+            --name "${{ vars.PDF_BLOB_NAME }}" \
+            --file data/docs/source.pdf \
+            --auth-mode login --only-show-errors
+
+      # Idempotent: rebuilds the index schema if needed and re-uploads chunks.
+      - name: Ingest document into the search index
+        run: python -m ingest.ingest
+
+      - name: Run evaluation gate
+        run: python -m evals.run_evals
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: evals/results.json
+          if-no-files-found: warn
