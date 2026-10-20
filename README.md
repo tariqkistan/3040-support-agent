@@ -1,5 +1,8 @@
 # 3040-support-agent
 
+[![CI](https://github.com/tariqkistan/3040-support-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/tariqkistan/3040-support-agent/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+
 A technical support agent built on **Microsoft Foundry** (Azure AI), grounded in
 a real technical PDF, secured without hardcoded secrets, and gated by an
 evaluation suite in CI.
