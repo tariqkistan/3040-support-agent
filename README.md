@@ -198,18 +198,6 @@ The eval job in `.github/workflows/ci.yml` needs:
 The `test` job runs everywhere; the `evals` job runs on pushes to `main`, PRs,
 and manual dispatch.
 
-## Scope and limitations
-
-- **Single-document agent.** Grounding is one index of one manual. Multi-doc
-  routing, doc versioning, and user-level memory are out of scope.
-- **Sessions live in process memory.** `session_id` → conversation mapping is an
-  in-process dict — fine for a demo, replaced by a store for production.
-- **Eval scores are indicative, not absolute.** LLM judges are noisy; floors in
-  `thresholds.yaml` come from the baseline run, not a universal quality bar.
-- **Free-tier search** has no semantic ranker; `vector_semantic_hybrid` is one
-  config flip away on a paid tier.
-- **The API key is a demo control** — one shared key, not per-user auth.
-
 ## Design notes
 
 See [docs/LEARNING.md](docs/LEARNING.md) for a per-stage "why this design"
