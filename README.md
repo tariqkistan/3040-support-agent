@@ -18,6 +18,8 @@ isn't in the doc.
 
 ## Architecture
 
+![3040 support agent system architecture](docs/images/architecture.jpg)
+
 ```mermaid
 flowchart LR
     subgraph Client
