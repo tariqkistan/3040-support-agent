@@ -192,11 +192,15 @@ The eval job in `.github/workflows/ci.yml` needs:
 3. **Repo settings:**
    - *Secrets*: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
      `APP_API_KEY`
-   - *Variables*: every endpoint/deployment name in `.env.example`, plus
-     `PDF_STORAGE_ACCOUNT`, `PDF_STORAGE_CONTAINER`, `PDF_BLOB_NAME`
+   - *Variables*: set `RUN_LIVE_AZURE_EVALS` to `true`, every endpoint/deployment
+     name in `.env.example`, plus `PDF_STORAGE_ACCOUNT`, `PDF_STORAGE_CONTAINER`,
+     `PDF_BLOB_NAME`. The live Azure evaluation job is skipped unless this
+     variable is `true`.
 
-The `test` job runs everywhere; the `evals` job runs on pushes to `main`, PRs,
-and manual dispatch.
+The `test` job runs on every push and pull request. The `evals` job runs on
+pushes to `main`, PRs, and manual dispatch when `RUN_LIVE_AZURE_EVALS` is
+`true`; leave it unset until the Azure OIDC identity, resource settings, and
+private PDF blob are configured.
 
 ## Design notes
 

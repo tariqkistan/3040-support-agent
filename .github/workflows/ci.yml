@@ -26,6 +26,7 @@ jobs:
 
   evals:
     name: Evaluation gate (live Azure)
+    if: vars.RUN_LIVE_AZURE_EVALS == 'true'
     needs: test
     runs-on: ubuntu-latest
     env:
