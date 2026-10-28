@@ -47,3 +47,15 @@ def test_generate_api_key_is_long_random():
     k1, k2 = generate_api_key(), generate_api_key()
     assert len(k1) == 64 and k1 != k2
     assert hmac.compare_digest(k1, k1)
+
+
+def test_rate_limit_key_hashes_the_api_key():
+    import hashlib
+    from types import SimpleNamespace
+
+    from app.main import rate_limit_key
+
+    key = "test-secret-key"
+    request = SimpleNamespace(headers={"X-API-Key": key})
+    assert rate_limit_key(request) == hashlib.sha256(key.encode()).hexdigest()
+    assert key not in rate_limit_key(request)

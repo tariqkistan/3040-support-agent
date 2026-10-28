@@ -2,14 +2,15 @@
 
 Metrics:
 * groundedness + relevance via azure-ai-evaluation (LLM judge, Entra ID)
-* citation correctness: cited page within ±1 of an expected page
+* citation correctness: cited page within ±2 of an expected page
 * refusal rate on out-of-scope cases (heuristic + no sources emitted)
 
 Writes evals/results.json with per-category scores; exits non-zero if any
 metric is below its threshold.
 
 Usage: python -m evals.run_evals [--no-llm-judge]
-  --no-llm-judge skips the groundedness/relevance judges (heuristics only).
+  --no-llm-judge runs deterministic checks only and returns an incomplete-gate
+  status rather than claiming a full pass.
 """
 
 import argparse
@@ -34,6 +35,7 @@ RESULTS = HERE / "results.json"
 # The doc's printed page numbers are offset ~2 pages from the PDF pages we
 # index; the agent may cite either, so allow that drift.
 PAGE_TOLERANCE = 2
+LLM_JUDGE_METRICS = {"groundedness", "relevance"}
 
 REFUSAL_PATTERNS = re.compile(
     r"(don'?t know|do not know|not (in|include|cover).*(document|manual|guide)|"
@@ -77,7 +79,9 @@ def load_judges(settings):
 
 
 async def run_case(case: dict, settings, idx: int) -> dict:
-    answer, sources = await run_agent_turn(f"eval-{idx}", case["question"], settings)
+    answer, sources = await run_agent_turn(
+        "evaluation-runner", f"eval-{idx}", case["question"], settings
+    )
     return {
         **case,
         "answer": answer,
@@ -94,19 +98,14 @@ def judge_rows(rows: list[dict], judges) -> None:
             row["groundedness"] = None
             row["relevance"] = None
             continue
-        try:
-            row["groundedness"] = judges["groundedness"](
-                query=row["question"],
-                context=row["reference_answer"],
-                response=row["answer"],
-            )["groundedness"]
-            row["relevance"] = judges["relevance"](
-                query=row["question"], response=row["answer"]
-            )["relevance"]
-        except Exception as e:  # judge hiccups shouldn't kill the run
-            print(f"  judge error on '{row['question'][:50]}': {e}")
-            row["groundedness"] = None
-            row["relevance"] = None
+        row["groundedness"] = judges["groundedness"](
+            query=row["question"],
+            context=row["reference_answer"],
+            response=row["answer"],
+        )["groundedness"]
+        row["relevance"] = judges["relevance"](
+            query=row["question"], response=row["answer"]
+        )["relevance"]
 
 
 def score(rows: list[dict]) -> dict:
@@ -144,10 +143,32 @@ def score(rows: list[dict]) -> dict:
     return {"metrics": metrics, "categories": categories}
 
 
+def check_thresholds(
+    metrics: dict, thresholds: dict, skipped_metrics: set[str] | None = None
+) -> tuple[list[str], list[str]]:
+    """Return failed and intentionally skipped metrics; missing required scores fail."""
+    skipped_metrics = skipped_metrics or set()
+    failed: list[str] = []
+    skipped: list[str] = []
+    for metric, floor in thresholds.items():
+        value = metrics.get(metric)
+        if value is None:
+            if metric in skipped_metrics:
+                skipped.append(metric)
+            else:
+                failed.append(metric)
+        elif value < floor:
+            failed.append(metric)
+    return failed, skipped
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--no-llm-judge", action="store_true",
-                        help="skip groundedness/relevance judges")
+    parser.add_argument(
+        "--no-llm-judge",
+        action="store_true",
+        help="run deterministic checks only; do not report a full gate pass",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -171,16 +192,18 @@ async def main() -> int:
     print(f"\nResults written to {RESULTS}")
 
     print("\n=== Metrics vs thresholds ===")
-    failed = []
+    skipped_metrics = LLM_JUDGE_METRICS if args.no_llm_judge else set()
+    failed, skipped = check_thresholds(
+        report["metrics"], thresholds, skipped_metrics=skipped_metrics
+    )
     for metric, value in report["metrics"].items():
         floor = thresholds.get(metric)
         if value is None:
-            print(f"  {metric:>18}: n/a (skipped)")
+            outcome = "SKIPPED" if metric in skipped else "FAIL (missing score)"
+            print(f"  {metric:>18}: n/a ({outcome})")
             continue
         ok = floor is None or value >= floor
         print(f"  {metric:>18}: {value}  (threshold {floor})  {'PASS' if ok else 'FAIL'}")
-        if not ok:
-            failed.append(metric)
 
     print("\n=== Per category ===")
     for cat, stats in report["categories"].items():
@@ -189,6 +212,12 @@ async def main() -> int:
     if failed:
         print(f"\nGATE FAILED on: {', '.join(failed)}")
         return 1
+    if skipped:
+        print(
+            "\nPARTIAL EVALUATION ONLY. No final quality-gate pass because "
+            f"these metrics were skipped: {', '.join(skipped)}"
+        )
+        return 2
     print("\nAll thresholds passed.")
     return 0
 

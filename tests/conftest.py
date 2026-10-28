@@ -14,6 +14,7 @@ def settings_env(monkeypatch):
         "AZURE_SEARCH_CONNECTION_NAME": "my-search-conn",
         "APP_API_KEY": "test-secret-key",
         "AGENT_MODEL_DEPLOYMENT": "gpt-4o",
+        "SESSION_STORE_BACKEND": "memory",
     }
     for key, value in env.items():
         monkeypatch.setenv(key, value)

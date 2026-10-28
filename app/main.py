@@ -6,9 +6,13 @@ Copilot Studio custom connector: explicit operationIds, a named
 X-API-Key security scheme, and descriptions on every operation.
 """
 
+import hashlib
+import logging
+from time import perf_counter
 from typing import Annotated
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
@@ -17,8 +21,20 @@ from slowapi.util import get_remote_address
 
 from app.auth import verify_api_key
 from app.config import Settings, get_settings
+from app.copilot_openapi import build_copilot_openapi
 
-limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger("app.request")
+
+
+def rate_limit_key(request: Request) -> str:
+    """Share the demo limit across callers using the same connector key."""
+    api_key = request.headers.get("X-API-Key")
+    if api_key:
+        return hashlib.sha256(api_key.encode()).hexdigest()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=rate_limit_key)
 
 app = FastAPI(
     title="3040 Support Agent",
@@ -32,6 +48,26 @@ app = FastAPI(
 app.state.limiter = limiter
 
 
+@app.middleware("http")
+async def add_request_context(request: Request, call_next):
+    request_id = str(uuid4())
+    request.state.request_id = request_id
+    started = perf_counter()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request_completed",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round((perf_counter() - started) * 1000, 2),
+        },
+    )
+    return response
+
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded."})
@@ -42,7 +78,7 @@ class ChatRequest(BaseModel):
 
     session_id: str = Field(
         ..., min_length=1, max_length=128,
-        description="Caller-chosen conversation id; state is kept per session.",
+        description="Opaque, unique conversation id supplied by the Copilot client.",
     )
     message: str = Field(
         ..., min_length=1,
@@ -58,6 +94,7 @@ class Source(BaseModel):
 
 
 class ChatResponse(BaseModel):
+    session_id: str = Field(description="Conversation id to reuse for follow-up turns.")
     answer: str = Field(description="The agent's answer, grounded in the index.")
     sources: list[Source] = Field(default_factory=list)
 
@@ -66,12 +103,33 @@ class ChatResponse(BaseModel):
     "/health",
     operation_id="healthCheck",
     summary="Liveness check",
-    description="Returns 200 when the service is up. Reports which required "
-                "settings are still empty (does not validate credentials).",
+    description="Returns 200 when the process is responding.",
 )
-async def health(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+async def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/copilot-openapi.json", include_in_schema=False)
+async def copilot_openapi() -> dict:
+    """Return Swagger 2.0 for Power Platform custom connector import."""
+    return build_copilot_openapi(app.openapi())
+
+
+@app.get(
+    "/ready",
+    operation_id="readinessCheck",
+    summary="Configuration readiness check",
+    description="Reports missing API configuration. Does not verify Azure connectivity.",
+)
+async def readiness(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> JSONResponse:
     missing = settings.missing_for_api()
-    return {"status": "ok" if not missing else "degraded", "missing_settings": missing}
+    ready = not missing
+    return JSONResponse(
+        status_code=status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"status": "ready" if ready else "not_ready", "missing_settings": missing},
+    )
 
 
 @app.post(
@@ -82,17 +140,23 @@ async def health(settings: Annotated[Settings, Depends(get_settings)]) -> dict:
                 "indexed technical document. Replies cite section and page; "
                 "out-of-scope questions are declined.",
     response_model=ChatResponse,
-    dependencies=[Depends(verify_api_key)],
 )
 @limiter.limit(lambda: f"{get_settings().rate_limit_per_minute}/minute")
 async def chat(
     request: Request,
     body: ChatRequest,
     settings: Annotated[Settings, Depends(get_settings)],
+    caller_id: Annotated[str, Depends(verify_api_key)],
 ) -> ChatResponse:
     if len(body.message) > settings.max_message_length:
         raise HTTPException(status_code=422, detail="Message exceeds maximum length.")
     from app.agent import run_agent_turn
 
-    answer, sources = await run_agent_turn(body.session_id, body.message, settings)
-    return ChatResponse(answer=answer, sources=[Source(**s) for s in sources])
+    answer, sources = await run_agent_turn(
+        caller_id, body.session_id, body.message, settings
+    )
+    return ChatResponse(
+        session_id=body.session_id,
+        answer=answer,
+        sources=[Source(**s) for s in sources],
+    )

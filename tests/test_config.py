@@ -39,6 +39,18 @@ def test_missing_for_api_lists_empty_fields():
     assert full.missing_for_api() == []
 
 
+def test_cosmos_backend_requires_endpoint():
+    settings = Settings(
+        _env_file=None,
+        session_store_backend="cosmos",
+        app_api_key="k",
+        azure_ai_project_endpoint="https://x",
+        azure_search_endpoint="https://y",
+        azure_search_connection_name="c",
+    )
+    assert settings.missing_for_api() == ["azure_cosmos_endpoint"]
+
+
 def test_env_loading(monkeypatch):
     monkeypatch.setenv("APP_API_KEY", "from-env")
     monkeypatch.setenv("MAX_MESSAGE_LENGTH", "100")
@@ -54,3 +66,10 @@ def test_invalid_limits_rejected():
 
     with pytest.raises(ValidationError):
         Settings(app_api_key="k", rate_limit_per_minute=0)
+
+
+def test_invalid_session_store_backend_rejected():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        Settings(session_store_backend="unknown")

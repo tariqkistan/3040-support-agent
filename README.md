@@ -21,6 +21,10 @@ flowchart LR
         A[Caller / Copilot Studio\ncustom connector]
     end
 
+    subgraph State["Session state"]
+        S[(Cosmos DB\nsession mapping + TTL)]
+    end
+
     subgraph API["FastAPI service"]
         B[X-API-Key auth\nconstant-time compare]
         C[Rate limit +\ninput limits]
@@ -43,6 +47,7 @@ flowchart LR
 
     A -- "POST /chat (X-API-Key)" --> B --> C --> D
     D <--> F
+    D -. "hosted session mapping" .-> S
     F --> E
     E -- "vector + keyword\nhybrid query" --> G
     G -. "query-time vectorization" .-> H
@@ -63,14 +68,16 @@ keys in code, config, or CI** — the only secret anywhere is the API's own
   conversations; answers cite section + page; typed `sources[]` in the response
 - **Foundry prompt agent** — Azure AI Search tool with hybrid (vector + keyword)
   retrieval; instructions enforce answer-only-from-index + refusal
+- **Durable hosted sessions** — Cosmos DB stores caller-scoped Foundry
+  conversation mappings with TTL; in-memory sessions remain for local development
 - **Structure-aware ingest** — font/layout analysis detects headings, tables,
   and numbered procedures; ~800-token chunks with ~100 overlap; tables and
   steps are never split mid-item; idempotent re-ingest
-- **Copilot-ready OpenAPI** — operationIds `chatWithSupportAgent` /
-  `healthCheck` and an `apiKey` security scheme, so the spec imports cleanly as
-  a custom connector
+- **Copilot Studio connector spec** — `/copilot-openapi.json` exports the
+  `chatWithSupportAgent` operation as OpenAPI 2.0 (Swagger), the format required
+  by Power Platform custom connectors
 - **Auth & abuse controls** — constant-time API-key compare (fails closed),
-  per-IP rate limiting, message length limits
+  per-connector-key demo rate limiting, message length limits
 - **Eval gate** — 30-case dataset; metrics: groundedness + relevance (LLM
   judge), citation accuracy, refusal rate; `thresholds.yaml` gates CI
 - **CI** — lint + tests on every change; eval job uses OIDC `azure/login` (no
@@ -110,6 +117,7 @@ docs/LEARNING.md  per-stage "why this design" notes
 | Foundry project managed identity | `Search Index Data Reader` | Search service |
 | Search service managed identity | `Cognitive Services OpenAI User` | Foundry account (index vectorizer) |
 | CI OIDC app | `Storage Blob Data Reader` | PDF blob container |
+| API runtime identity (hosted Cosmos mode) | Least-privilege Cosmos DB data-plane role | Session database/container |
 
 ## Quickstart
 
@@ -143,10 +151,22 @@ python -m evals.run_evals              # writes evals/results.json, gates on thr
 
 | Endpoint | Auth | Description |
 |---|---|---|
-| `GET /health` | none | Liveness (`healthCheck`) |
-| `POST /chat` | `X-API-Key` | `{message, session_id?}` → `{answer, sources[], session_id}` (`chatWithSupportAgent`) |
+| `GET /health` | none | Process liveness (`healthCheck`) |
+| `GET /ready` | none | Configuration readiness (`readinessCheck`) |
+| `POST /chat` | `X-API-Key` | `{message, session_id}` → `{answer, sources[], session_id}` (`chatWithSupportAgent`) |
 
-`session_id` maps to a Foundry conversation, so follow-up questions keep context.
+`session_id` maps to a Foundry conversation, so follow-up questions keep
+context. Use an opaque, unique conversation identifier. The API key currently
+identifies the connector/service, not the individual Copilot user; this is a
+portfolio demo control, not enterprise user authentication.
+
+## Copilot Studio
+
+The API is designed to be called by **Copilot Studio** through a custom
+connector. It does not become a GitHub Copilot coding agent in VS Code. Follow
+the [Copilot Studio connector guide](docs/COPILOT_STUDIO.md) for the setup
+path. A deployed connector requires a publicly reachable or appropriately
+network-connected HTTPS API; `localhost` is not reachable by Copilot Studio.
 
 ## Evaluation gate
 
@@ -200,10 +220,18 @@ and manual dispatch.
 
 - **Single-document agent.** Grounding is one index of one manual. Multi-doc
   routing, doc versioning, and user-level memory are out of scope.
-- **Sessions live in process memory.** `session_id` → conversation mapping is an
-  in-process dict — fine for a demo, replaced by a store for production.
+- **Local sessions live in process memory.** Hosted sessions can use Cosmos DB
+  with a configured TTL container. The selected store is not a full transcript
+  database; Foundry Conversations remains the source of conversation history.
+- **API key is shared.** It does not provide end-user identity or authorization.
+  Configure an organization-approved OAuth/Entra gateway before any real
+  enterprise use.
+- **Rate limiting is process-local.** Use an API gateway or distributed limiter
+  for multi-instance deployments.
 - **Eval scores are indicative, not absolute.** LLM judges are noisy; floors in
   `thresholds.yaml` come from the baseline run, not a universal quality bar.
+- **No-judge evals are partial.** `--no-llm-judge` writes diagnostic metrics but
+  exits with status 2; only a complete evaluation can pass the quality gate.
 - **Free-tier search** has no semantic ranker; `vector_semantic_hybrid` is one
   config flip away on a paid tier.
 - **The API key is a demo control** — one shared key, not per-user auth.
@@ -213,3 +241,6 @@ and manual dispatch.
 See [docs/LEARNING.md](docs/LEARNING.md) for a per-stage "why this design"
 walkthrough (chunking, the index-side vectorizer, conversations vs threads, the
 non-reasoning judge, OIDC, and more).
+See [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for the
+portfolio-grade readiness checklist and [docs/COPILOT_STUDIO.md](docs/COPILOT_STUDIO.md)
+for the connector walkthrough.

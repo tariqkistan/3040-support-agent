@@ -5,6 +5,7 @@ pydantic-settings==2.16.0
 azure-identity==1.26.0
 azure-search-documents==11.6.0
 azure-ai-projects==2.9.0
+azure-cosmos==4.17.1
 azure-ai-evaluation==1.18.9
 pymupdf==1.26.7
 slowapi==0.1.10

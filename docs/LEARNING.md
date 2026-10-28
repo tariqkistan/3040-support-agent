@@ -58,6 +58,8 @@ API: a `conversation` holds items (messages) and each turn is a
 `responses.create` bound to the agent. Holding the conversation server-side
 means multi-turn context works without shipping history on every request —
 which is exactly what a Copilot Studio custom connector needs.
+The session-to-conversation mapping is in memory for local development and can
+be stored in Cosmos DB with a TTL for a hosted service.
 
 **Why parse citations instead of trusting structured output?** The model emits
 `Sources:` lines because that's robust across small models; `parse_sources`

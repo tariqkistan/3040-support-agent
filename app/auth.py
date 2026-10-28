@@ -6,6 +6,7 @@ portfolio endpoint. It is NOT Azure authentication — Azure calls use
 DefaultAzureCredential (Entra ID) and need no keys at all.
 """
 
+import hashlib
 import hmac
 import secrets
 from typing import Annotated
@@ -25,8 +26,8 @@ api_key_header = APIKeyHeader(
 def verify_api_key(
     api_key: Annotated[str | None, Security(api_key_header)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> None:
-    """FastAPI dependency: reject requests without the correct X-API-Key."""
+) -> str:
+    """Validate the shared API key and return a non-secret caller scope."""
     if not settings.app_api_key:
         # Fail closed: a missing server-side key means nobody gets in.
         raise HTTPException(
@@ -40,6 +41,7 @@ def verify_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid API key.",
         )
+    return hashlib.sha256(api_key.encode()).hexdigest()
 
 
 def generate_api_key() -> str:

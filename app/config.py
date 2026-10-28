@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     # This API's own key (not an Azure credential)
     app_api_key: str = ""
 
+    # Conversation mapping. Memory is for local development only; hosted
+    # deployments should use Cosmos DB with item TTL enabled.
+    session_store_backend: str = "memory"
+    azure_cosmos_endpoint: str = ""
+    azure_cosmos_database: str = "support-agent"
+    azure_cosmos_container: str = "agent-sessions"
+    session_ttl_seconds: int = Field(default=30 * 24 * 60 * 60, gt=0)
+
     # Guardrails
     max_message_length: int = Field(default=4000, gt=0)
     rate_limit_per_minute: int = Field(default=30, gt=0)
@@ -60,6 +68,15 @@ class Settings(BaseSettings):
             return v.rstrip("/")
         return v
 
+    @field_validator("session_store_backend", mode="before")
+    @classmethod
+    def normalize_session_store_backend(cls, v: object) -> object:
+        if isinstance(v, str):
+            v = v.strip().lower()
+            if v not in {"memory", "cosmos"}:
+                raise ValueError("SESSION_STORE_BACKEND must be 'memory' or 'cosmos'.")
+        return v
+
     def missing_for_api(self) -> list[str]:
         """Settings required to serve /chat. Empty means 'not configured'."""
         required = {
@@ -68,6 +85,8 @@ class Settings(BaseSettings):
             "azure_search_connection_name": self.azure_search_connection_name,
             "app_api_key": self.app_api_key,
         }
+        if self.session_store_backend == "cosmos":
+            required["azure_cosmos_endpoint"] = self.azure_cosmos_endpoint
         return [name for name, value in required.items() if not value]
 
 

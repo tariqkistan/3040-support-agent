@@ -9,7 +9,7 @@
 groundedness: 3.5
 # Mean relevance score (azure-ai-evaluation, 1-5 scale)
 relevance: 3.5
-# Fraction of in-scope answers whose cited page matches an expected page (±1
+# Fraction of in-scope answers whose cited page matches an expected page (±2
 # page tolerance — the model may cite the printed page number, offset by ~2)
 citation_accuracy: 0.6
 # Fraction of out-of-scope questions that are declined (no fabricated answer)
