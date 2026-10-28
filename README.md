@@ -3,6 +3,8 @@
 ![CI](https://github.com/tariqkistan/3040-support-agent/actions/workflows/ci.yml/badge.svg)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 
+<a href="https://github.com/tariqkistan?tab=repositories"><img src="https://img.shields.io/badge/GITHUB-MICROSOFT%20FOUNDRY%20FORUM-b4ff39?style=for-the-badge&logo=github&logoColor=white&labelColor=555555" alt="VIEW MY OTHER REPOS"></a>
+
 A technical support agent built on **Microsoft Foundry** (Azure AI), grounded in
 a real technical PDF, secured without hardcoded secrets, and gated by an
 evaluation suite in CI.
